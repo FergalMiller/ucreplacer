@@ -4,6 +4,7 @@
 
 import sys
 import os
+import re
 
 
 def get_user_input_of(reason) -> str:
@@ -26,10 +27,9 @@ def get_illegal_characters(illegal_characters_location) -> list:
     try:
         with open(illegal_characters_location) as illegal_characters_file:
             content = illegal_characters_file.read()
-            print("Fetching illegal characters...")
+            print("\nFetching illegal characters...")
             for c in list(content):
-                if not (c == ' ' or c == '\n' or c == ','):
-                    illegal_characters.append(c)
+                illegal_characters.append(c)
     except FileNotFoundError:
         print("Error! Schema could not be found in location", illegal_characters_location)
         illegal_characters = get_illegal_characters(get_user_input_of("location of your illegal characters text file"))
@@ -37,35 +37,33 @@ def get_illegal_characters(illegal_characters_location) -> list:
 
 
 def write_schema_file(schema_location, schema: dict):
-    try:
-        with open(schema_location, 'w') as schema_file:
-            for entry in schema.items():
-                schema_file.write(entry[0] + ',' + entry[1] + '\n')
-    except FileNotFoundError:
-        if input("schema.txt not found. Create new schema file in this directory? (y/n):") == "y":
-            open(schema_location, 'x').close()
-            write_schema_file(schema_location, schema)
+    with open(schema_location, 'w') as schema_file:
+        for entry in schema.items():
+            schema_file.write(entry[0] + entry[1] + '\n')
+
+
+def escape_character(character) -> str:
+    with open('temp.txt', 'w') as inp_file:
+        inp_file.writelines(character)
+
+    os.system("native2ascii -encoding utf8 temp.txt temp.txt")
+
+    with open('temp.txt', 'r') as out_file:
+        return out_file.read()[:6]
 
 
 def build_schema(illegal_characters) -> dict:
     schema = {}
     print("Building new schema from illegal characters...")
 
-    with open('temp.txt', 'x') as inp_file:
-        inp_file.writelines(illegal_characters)
-
-    os.system("native2ascii -encoding utf8 temp.txt temp.txt")
-
-    with open('temp.txt', 'r') as out_file:
-        escaped_chars = out_file.read().split("\\")[1:]
+    for character in illegal_characters:
+        escaped_character = escape_character(character)
+        if re.compile(escape_pattern).search(escaped_character):
+            schema[character] = escaped_character
+        else:
+            print('\033[91m' + "WARNING: character `" + character + "` cannot be escaped. Not added to schema" + '\033[0m')
 
     os.remove("temp.txt")
-
-    index = 0
-    while index < len(escaped_chars):
-        formatted_escape = "\\" + escaped_chars[index][:5]
-        schema[illegal_characters[index]] = formatted_escape
-        index += 1
 
     print("Schema built. Writing to schema text file...")
     write_schema_file(schema_default_location, schema)
@@ -78,7 +76,7 @@ def get_schema(schema_location) -> dict:
         with open(schema_location, 'r') as schema_file:
             lines = schema_file.readlines()
             for line in lines:
-                pair = line.strip().split(",")
+                pair = (line[:1], line[1:7])
                 if pair[0] in schema:
                     print("Warning: multiple entries in schema for key:", pair[0])
                 else:
@@ -90,6 +88,7 @@ def get_schema(schema_location) -> dict:
 
 
 def replace_illegal_characters_in_target_file(target_file_path, schema):
+    print('\033[92m' + "Replacing illegal characters in `" + target_file_path + "`" + '\033[0m')
     property_file = open(target_file_path, "r")
     properties = property_file.readlines()
     index = 0
@@ -105,8 +104,7 @@ def replace_illegal_characters_in_target_file(target_file_path, schema):
 
 
 def prepare_schema() -> dict:
-    if input("You should build your schema again if you have changed your illegal characters file "
-             "since the last build. Would you like to (re)build the schema? (y/n): ") == "y":
+    if acceptance_strings.__contains__(input("Would you like to (re)build the schema? (y/n): ")):
         return build_schema(get_illegal_characters(illegal_characters_default_location))
     else:
         return get_schema(schema_default_location)
@@ -114,22 +112,34 @@ def prepare_schema() -> dict:
 
 def bulk(root_search_directory, file_extension):
     schema = prepare_schema()
-
+    target_files = []
     for root, dirs, files in os.walk(root_search_directory):
         for file in files:
             if file.endswith(file_extension):
-                target_file = os.path.join(root, file)
-                print("Replacing illegal characters in", target_file)
-                replace_illegal_characters_in_target_file(target_file, schema)
+                target_files.append(os.path.join(root, file))
+
+    print("\n--Listing files found in specified target directory--")
+
+    for target_file in target_files:
+        print('\033[93m' + target_file + '\033[0m')
+
+    if acceptance_strings.__contains__(input("Are you sure you want to modify all of these files? (y/n): ").strip()):
+        print("\nBeginning replacement!")
+        for target_file in target_files:
+            replace_illegal_characters_in_target_file(target_file, schema)
 
 
 def single(file_path):
     schema = prepare_schema()
-    print("Replacing illegal characters in file at path:", file_path)
+
+    print("SChema: ", schema)
+
+    print("\nBeginning replacement!")
     replace_illegal_characters_in_target_file(file_path, schema)
 
 
 def main():
+    print('\033[95m' + "\n ------------\n| ucreplacer |\n ------------\n" + '\033[0m')
     # First argument: Choose bulk or single
     # Second argument: Target file directory (bulk) or specific file name (single)
     # Third argument: Tile file extension (only applicable to bulk)
@@ -159,4 +169,6 @@ def main():
 
 schema_default_location = "schema.txt"
 illegal_characters_default_location = "illegalchars.txt"
+acceptance_strings = ["y", "Y", "yes", "YES"]
+escape_pattern = r'\\u[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]'
 main()
