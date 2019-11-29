@@ -22,14 +22,15 @@ def illegal_characters_in_line(s, illegal_characters) -> set:
     return result
 
 
-def get_illegal_characters(illegal_characters_location) -> list:
-    illegal_characters = []
+def get_illegal_characters(illegal_characters_location) -> set:
+    illegal_characters = set()
     try:
         with open(illegal_characters_location) as illegal_characters_file:
-            content = illegal_characters_file.read()
+            content = illegal_characters_file.read().strip()
             print("\nFetching illegal characters...")
             for c in list(content):
-                illegal_characters.append(c)
+                if not(c == ' ' or c == '\n'):
+                    illegal_characters.add(c)
     except FileNotFoundError:
         print("Error! Schema could not be found in location", illegal_characters_location)
         illegal_characters = get_illegal_characters(get_user_input_of("location of your illegal characters text file"))
@@ -42,28 +43,30 @@ def write_schema_file(schema_location, schema: dict):
             schema_file.write(entry[0] + entry[1] + '\n')
 
 
-def escape_character(character) -> str:
-    with open('temp.txt', 'w') as inp_file:
-        inp_file.writelines(character)
-
-    os.system("native2ascii -encoding utf8 temp.txt temp.txt")
-
-    with open('temp.txt', 'r') as out_file:
-        return out_file.read()[:6]
-
-
 def build_schema(illegal_characters) -> dict:
     schema = {}
     print("Building new schema from illegal characters...")
 
+    with open('temp.txt', 'w') as inp_file:
+        for c in illegal_characters:
+            inp_file.write(c + ",")
+
+    os.system("native2ascii -encoding utf8 temp.txt temp.txt")
+
+    with open('temp.txt', 'r') as out_file:
+        escaped_characters = out_file.read().split(',')
+
+    os.remove("temp.txt")
+
+    index = 0
     for character in illegal_characters:
-        escaped_character = escape_character(character)
+        escaped_character = escaped_characters[index]
         if re.compile(escape_pattern).search(escaped_character):
             schema[character] = escaped_character
         else:
-            print('\033[91m' + "WARNING: character `" + character + "` cannot be escaped. Not added to schema" + '\033[0m')
-
-    os.remove("temp.txt")
+            print('\033[91m' + "WARNING: character `" + character +
+                  "` cannot be escaped. Not added to schema" + '\033[0m')
+        index += 1
 
     print("Schema built. Writing to schema text file...")
     write_schema_file(schema_default_location, schema)
