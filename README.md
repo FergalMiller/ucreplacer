@@ -28,3 +28,9 @@ e.g. `ucreplacer.py bulk rootdir/mydir .properties`
 
 __**Be aware that there is no way (using ucreplacer) to undo the actions carried out by ucreplacer, so please ensure your target file or directory is correct before running.**__
 
+
+### How it works
+
+ucreplacer takes the list of all your illegal characters specified in `illegalchars.txt`.
+Using this list of characters a schema is built and placed in `schema.txt`. 
+If you want to run ucreplacer again with the same illegal characters the schema remains the same and you do not have to rebuild the schema each time you run it.
