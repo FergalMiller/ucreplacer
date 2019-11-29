@@ -1,4 +1,5 @@
 # ucreplacer.py
+ucreplacer is written in Python 3.7
 
 ucreplacer is a script that quickly replaces all occurrences of specified illegal characters with its unicode escaped counterpart.
 
