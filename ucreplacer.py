@@ -32,7 +32,7 @@ def get_illegal_characters(illegal_characters_location) -> set:
                 if not(c == ' ' or c == '\n'):
                     illegal_characters.add(c)
     except FileNotFoundError:
-        print("Error! Schema could not be found in location", illegal_characters_location)
+        print('\033[91m' + "Error! Schema could not be found in location", illegal_characters_location + '\033[0m')
         illegal_characters = get_illegal_characters(get_user_input_of("location of your illegal characters text file"))
     return illegal_characters
 
@@ -65,7 +65,7 @@ def build_schema(illegal_characters) -> dict:
             schema[character] = escaped_character
         else:
             print('\033[91m' + "WARNING: character `" + character +
-                  "` cannot be escaped. Not added to schema" + '\033[0m')
+                  "` cannot be escaped. Not added to schema." + '\033[0m')
         index += 1
 
     print("Schema built. Writing to schema text file...")
@@ -134,8 +134,6 @@ def bulk(root_search_directory, file_extension):
 
 def single(file_path):
     schema = prepare_schema()
-
-    print("SChema: ", schema)
 
     print("\nBeginning replacement!")
     replace_illegal_characters_in_target_file(file_path, schema)
